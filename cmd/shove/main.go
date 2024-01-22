@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -22,38 +24,69 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-var debug = flag.Bool("debug", false, "Enable debug logging")
-var apiAddr = flag.String("api-addr", ":8322", "API address to listen to")
+// from -> https://www.gmarik.info/blog/2019/12-factor-golang-flag-package/
+func LookupEnvOrString(key string, defaultVal string) string {
+	if val, ok := os.LookupEnv(key); ok {
+		return val
+	}
+	return defaultVal
+}
 
-var apnsCertificate = flag.String("apns-certificate-path", "", "APNS certificate path")
-var apnsSandboxCertificate = flag.String("apns-sandbox-certificate-path", "", "APNS sandbox certificate path")
-var apnsWorkers = flag.Int("apns-workers", 4, "The number of workers pushing APNS messages")
+func LookupEnvOrInt(key string, defaultVal int) int {
+	if val, ok := os.LookupEnv(key); ok {
+		v, err := strconv.Atoi(val)
+		if err != nil {
 
-var fcmAPIKey = flag.String("fcm-api-key", "", "FCM API key")
-var fcmWorkers = flag.Int("fcm-workers", 4, "The number of workers pushing FCM messages")
+			log.Fatalf("LookupEnvOrInt[%s]: %v", key, err)
+		}
+		return v
+	}
+	return defaultVal
+}
 
-var redisURL = flag.String("queue-redis", "", "Use Redis queue (Redis URL)")
+func LookupEnvOrBool(key string, defaultVal bool) bool {
+	if val, ok := os.LookupEnv(key); ok {
+		v, err := strconv.ParseBool(val)
+		if err != nil {
+			log.Fatalf("LookupEnvOrBool[%s]: %v", key, err)
+		}
+		return v
+	}
+	return defaultVal
+}
 
-var webhookWorkers = flag.Int("webhook-workers", 0, "The number of workers pushing Webhook messages")
+var debug = flag.Bool("debug", LookupEnvOrBool("DEBUG", false), "Enable debug logging")
+var apiAddr = flag.String("api-addr", LookupEnvOrString("API_ADDR", ":8322"), "API address to listen to")
 
-var webPushVAPIDPublicKey = flag.String("webpush-vapid-public-key", "", "VAPID public key")
-var webPushVAPIDPrivateKey = flag.String("webpush-vapid-private-key", "", "VAPID public key")
-var webPushWorkers = flag.Int("webpush-workers", 8, "The number of workers pushing Web messages")
+var apnsCertificate = flag.String("apns-certificate-path", LookupEnvOrString("APNS_CERTIFICATE_PATH", ""), "APNS certificate path")
+var apnsSandboxCertificate = flag.String("apns-sandbox-certificate-path", LookupEnvOrString("APNS_SANDBOX_CERTIFICATE_PATH", ""), "APNS sandbox certificate path")
+var apnsWorkers = flag.Int("apns-workers", LookupEnvOrInt("APNS_WORKERS", 4), "The number of workers pushing APNS messages")
 
-var telegramBotToken = flag.String("telegram-bot-token", "", "Telegram bot token")
-var telegramWorkers = flag.Int("telegram-workers", 2, "The number of workers pushing Telegram messages")
-var telegramRateAmount = flag.Int("telegram-rate-amount", 0, "Telegram max. rate (amount)")
-var telegramRatePer = flag.Int("telegram-rate-per", 0, "Telegram max. rate (per seconds)")
+var fcmAPIKey = flag.String("fcm-api-key", LookupEnvOrString("FCM_API_KEY", ""), "FCM API key")
+var fcmWorkers = flag.Int("fcm-workers", LookupEnvOrInt("FCM_WORKERS", 4), "The number of workers pushing FCM messages")
 
-var emailHost = flag.String("email-host", "", "Email host")
-var emailPort = flag.Int("email-port", 25, "Email port")
-var emailPlainAuth = flag.Bool("email-plain-auth", false, "Email plain auth(username and password)")
-var emailUsername = flag.String("email-username", "", "Email username")
-var emailPassword = flag.String("email-password", "", "Email password")
-var emailTLS = flag.Bool("email-tls", false, "Use TLS")
-var emailTLSInsecure = flag.Bool("email-tls-insecure", false, "Skip TLS verification")
-var emailRateAmount = flag.Int("email-rate-amount", 0, "Email max. rate (amount)")
-var emailRatePer = flag.Int("email-rate-per", 0, "Email max. rate (per seconds)")
+var redisURL = flag.String("queue-redis", LookupEnvOrString("QUEUE_REDIS", ""), "Use Redis queue (Redis URL)")
+
+var webhookWorkers = flag.Int("webhook-workers", LookupEnvOrInt("WEBHOOK_WORKERS", 0), "The number of workers pushing Webhook messages")
+
+var webPushVAPIDPublicKey = flag.String("webpush-vapid-public-key", LookupEnvOrString("WEBPUSH_VAPID_PUBLIC_KEY", ""), "VAPID public key")
+var webPushVAPIDPrivateKey = flag.String("webpush-vapid-private-key", LookupEnvOrString("WEBPUSH_VAPID_PRIVATE_KEY", ""), "VAPID public key")
+var webPushWorkers = flag.Int("webpush-workers", LookupEnvOrInt("WEBPUSH_WORKERS", 8), "The number of workers pushing Web messages")
+
+var telegramBotToken = flag.String("telegram-bot-token", LookupEnvOrString("TELEGRAM_BOT_TOKEN", ""), "Telegram bot token")
+var telegramWorkers = flag.Int("telegram-workers", LookupEnvOrInt("TELEGRAM_WORKERS", 2), "The number of workers pushing Telegram messages")
+var telegramRateAmount = flag.Int("telegram-rate-amount", LookupEnvOrInt("TELEGRAM_RATE_AMOUNT", 0), "Telegram max. rate (amount)")
+var telegramRatePer = flag.Int("telegram-rate-per", LookupEnvOrInt("TELEGRAM_RATE_PER", 0), "Telegram max. rate (per seconds)")
+
+var emailHost = flag.String("email-host", LookupEnvOrString("EMAIL_HOST", ""), "Email host")
+var emailPort = flag.Int("email-port", LookupEnvOrInt("EMAIL_PORT", 25), "Email port")
+var emailPlainAuth = flag.Bool("email-plain-auth", LookupEnvOrBool("EMAIL_PLAIN_AUTH", false), "Email plain auth(username and password)")
+var emailUsername = flag.String("email-username", LookupEnvOrString("EMAIL_USERNAME", ""), "Email username")
+var emailPassword = flag.String("email-password", LookupEnvOrString("EMAIL_PASSWORD", ""), "Email password")
+var emailTLS = flag.Bool("email-tls", LookupEnvOrBool("EMAIL_TLS", false), "Use TLS")
+var emailTLSInsecure = flag.Bool("email-tls-insecure", LookupEnvOrBool("EMAIL_TLS_INSECURE", false), "Skip TLS verification")
+var emailRateAmount = flag.Int("email-rate-amount", LookupEnvOrInt("EMAIL_RATE_AMOUNT", 0), "Email max. rate (amount)")
+var emailRatePer = flag.Int("email-rate-per", LookupEnvOrInt("EMAIL_RATE_PER", 0), "Email max. rate (per seconds)")
 
 func newLogger() *slog.Logger {
 	var opts *slog.HandlerOptions
