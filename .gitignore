@@ -1,3 +1,6 @@
+.DS_Store
+
 *~
 /cmd/shove/shove
 /shove
+build

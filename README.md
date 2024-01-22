@@ -245,7 +245,7 @@ over a raw payload. Here's an example:
     func main() {
     	redisURL := os.Getenv("REDIS_URL")
     	if redisURL == "" {
-    		redis_URL = "redis://localhost:6379"
+    		redisURL = "redis://localhost:6379"
     	}
     	client := shove.NewRedisClient(redisURL)
 
