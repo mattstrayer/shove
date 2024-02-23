@@ -1,24 +1,40 @@
 package fcm
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
-	"gitlab.com/pennersr/shove/internal/services"
-	"golang.org/x/exp/slog"
 	"net/http"
 	"time"
+
+	firebase "firebase.google.com/go/v4"
+	errorutils "firebase.google.com/go/v4/errorutils"
+	"firebase.google.com/go/v4/messaging"
+	"gitlab.com/pennersr/shove/internal/services"
+	"golang.org/x/exp/slog"
 )
 
 // FCM ...
 type FCM struct {
-	apiKey string
+	client *messaging.Client
 	log    *slog.Logger
 }
 
 // NewFCM ...
-func NewFCM(apiKey string, log *slog.Logger) (fcm *FCM, err error) {
+func NewFCM(log *slog.Logger) (fcm *FCM, err error) {
+	app, err := firebase.NewApp(context.Background(), nil)
+	if err != nil {
+		fcm.log.Error("error initializing Firebase app: %v\n", err)
+		return nil, err
+	}
+
+	ctx := context.Background()
+	client, err := app.Messaging(ctx)
+	if err != nil {
+		fcm.log.Error("error getting FCM Messaging client: %v\n", err)
+	}
+
 	fcm = &FCM{
-		apiKey: apiKey,
+		client: client,
 		log:    log,
 	}
 	return
@@ -39,6 +55,7 @@ func (fcm *FCM) String() string {
 }
 
 func (fcm *FCM) NewClient() (services.PumpClient, error) {
+
 	client := &http.Client{
 		Timeout: time.Duration(15 * time.Second),
 		Transport: &http.Transport{
@@ -66,70 +83,58 @@ func (fcm *FCM) SquashAndPushMessage(services.PumpClient, []services.ServiceMess
 func (fcm *FCM) PushMessage(pclient services.PumpClient, smsg services.ServiceMessage, fc services.FeedbackCollector) services.PushStatus {
 	msg := smsg.(fcmMessage)
 	startedAt := time.Now()
+
+	message := messaging.Message{}
+	err := json.Unmarshal(msg.rawData, &message)
+	if err != nil {
+		fcm.log.Error("Error unmarshalling message:", err)
+		return services.PushStatusHardFail
+	}
+
+	message.Token = msg.To
+
 	var success bool
 
-	req, err := http.NewRequest("POST", "https://fcm.googleapis.com/fcm/send", bytes.NewBuffer(msg.rawData))
+	// Send a message to the device corresponding to the provided
+	// registration token.
+	response, err := fcm.client.Send(context.Background(), &message)
+
+	fcm.log.Info("Sending", "response", response, "error", err)
 	if err != nil {
-		fcm.log.Error("Creating request failed", "error", err)
-		return services.PushStatusHardFail
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "key="+fcm.apiKey)
+		fcm.log.Error("sending failed", "error", err)
 
-	client := pclient.(*http.Client)
-	resp, err := client.Do(req)
-	if err != nil {
-		fcm.log.Error("Posting failed", "error", err)
-		return services.PushStatusTempFail
-	}
-	duration := time.Now().Sub(startedAt)
+		// Only define conditions where we need to hard fail.
+		// all others will be temp failed by default
+		// https://github.com/firebase/firebase-admin-go/blob/master/internal/errors.go#L68
+		if errorutils.IsInvalidArgument(err) {
+			return services.PushStatusHardFail
+		}
 
-	defer func() {
-		fc.CountPush(fcm.ID(), success, duration)
-	}()
+		if errorutils.IsDataLoss(err) {
+			return services.PushStatusHardFail
+		}
 
-	defer resp.Body.Close()
-	if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-		fcm.log.Error("Rejected", "status", resp.StatusCode)
-		return services.PushStatusHardFail
-	}
-	if resp.StatusCode >= 500 && resp.StatusCode < 600 {
-		fcm.log.Error("Upstream failure", "status", resp.StatusCode)
-		return services.PushStatusTempFail
-	}
-
-	var fr fcmResponse
-	err = json.NewDecoder(resp.Body).Decode(&fr)
-	if err != nil {
-		fcm.log.Error("Unable to decode response", "error", err)
-		return services.PushStatusTempFail
-	}
-	regIDs := msg.RegistrationIDs
-	if len(regIDs) == 0 {
-		regIDs = append(regIDs, msg.To)
-	}
-	fcm.log.Info("Pushed", "duration", duration)
-	for i, fb := range fr.Results {
-		switch fb.Error {
-		case "":
-			// Noop
-		case "InvalidRegistration":
-			fallthrough
-		case "NotRegistered":
+		if errorutils.IsNotFound(err) {
 			// you should remove the registration ID from your
 			// server database because the application was
 			// uninstalled from the device or it does not have a
 			// broadcast receiver configured to receive
 			// com.google.android.c2dm.intent.RECEIVE intents.
-			fc.TokenInvalid(fcm.ID(), regIDs[i])
-		case "Unavailable":
-			// If it is Unavailable, you could retry to send it in
-			// another request.
-			fallthrough
-		default:
-			fcm.log.Error("Sending failed", "error", fb.Error)
+			fc.TokenInvalid(fcm.ID(), msg.To)
+			return services.PushStatusHardFail
 		}
+
+		return services.PushStatusTempFail
 	}
+
+	duration := time.Since(startedAt)
+
+	defer func() {
+		fc.CountPush(fcm.ID(), success, duration)
+	}()
+
+	fcm.log.Info("Pushed", "duration", duration)
+
 	success = true
 	return services.PushStatusSuccess
 }
