@@ -62,7 +62,8 @@ var apnsCertificate = flag.String("apns-certificate-path", LookupEnvOrString("AP
 var apnsSandboxCertificate = flag.String("apns-sandbox-certificate-path", LookupEnvOrString("APNS_SANDBOX_CERTIFICATE_PATH", ""), "APNS sandbox certificate path")
 var apnsWorkers = flag.Int("apns-workers", LookupEnvOrInt("APNS_WORKERS", 4), "The number of workers pushing APNS messages")
 
-var fcmAPIKey = flag.String("fcm-api-key", LookupEnvOrString("FCM_API_KEY", ""), "FCM API key")
+// this must be set as an environment variable
+var googleApplicationCredentials = flag.String("google-application-credentials", LookupEnvOrString("GOOGLE_APPLICATION_CREDENTIALS", ""), "Google application credentials path")
 var fcmWorkers = flag.Int("fcm-workers", LookupEnvOrInt("FCM_WORKERS", 4), "The number of workers pushing FCM messages")
 
 var redisURL = flag.String("queue-redis", LookupEnvOrString("QUEUE_REDIS", ""), "Use Redis queue (Redis URL)")
@@ -149,8 +150,9 @@ func main() {
 		}
 	}
 
-	if *fcmAPIKey != "" {
-		fcm, err := fcm.NewFCM(*fcmAPIKey, newServiceLogger("fcm"))
+	if *googleApplicationCredentials != "" {
+
+		fcm, err := fcm.NewFCM(newServiceLogger("fcm"))
 		if err != nil {
 			slog.Error("Failed to setup FCM service", "error", err)
 			os.Exit(1)
