@@ -20,6 +20,5 @@ COPY --from=build /shove/shove .
 
 RUN apk --no-cache add ca-certificates tzdata
 
-USER shover:shover
 
 ENTRYPOINT ["/server/shove"]
