@@ -46,9 +46,20 @@ jobs:
       - name: Build
         run: go build -race -ldflags "-extldflags '-static'" -o shove ./cmd/shove
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: shove
-          path: shove
-          retention-days: 7
+      - name: Build Stats
+        run: |
+          echo "Binary size:"
+          ls -lh shove
+          echo -e "\nBinary info:"
+          file shove
+          echo -e "\nDependencies:"
+          ldd shove || echo "No dynamic dependencies (statically linked)"
+          echo -e "\nSymbols count:"
+          nm shove | wc -l
+
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: shove
+      #     path: shove
+      #     retention-days: 7
