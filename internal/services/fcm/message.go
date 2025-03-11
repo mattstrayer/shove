@@ -3,7 +3,8 @@ package fcm
 import (
 	"encoding/json"
 	"errors"
-	"gitlab.com/pennersr/shove/internal/services"
+
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 type fcmMessage struct {

@@ -1,6 +1,6 @@
 # When push comes to shove...
 
-[![Go Report Card](https://goreportcard.com/badge/gitlab.com/pennersr/shove)](https://goreportcard.com/report/gitlab.com/pennersr/shove) [![Written in Emacs](https://pennersr.github.io/img/emacs-badge.svg)](https://www.gnu.org/software/emacs/) [![Pipeline Status](https://gitlab.com/pennersr/shove/badges/master/pipeline.svg)](https://gitlab.com/pennersr/shove/-/pipelines)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mattstrayer/shove)](https://goreportcard.com/report/github.com/mattstrayer/shove) [![Written in Emacs](https://pennersr.github.io/img/emacs-badge.svg)](https://www.gnu.org/software/emacs/) [![Pipeline Status](https://github.com/mattstrayer/shove/badges/master/pipeline.svg)](https://github.com/mattstrayer/shove/-/pipelines)
 
 ## Background
 
@@ -257,7 +257,7 @@ over a raw payload. Here's an example:
 
     import (
     	"encoding/json"
-    	"gitlab.com/pennersr/shove/pkg/shove"
+    	"github.com/mattstrayer/shove/pkg/shove"
     	"log"
     	"os"
     )

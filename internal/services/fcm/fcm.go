@@ -9,7 +9,7 @@ import (
 	firebase "firebase.google.com/go/v4"
 	errorutils "firebase.google.com/go/v4/errorutils"
 	"firebase.google.com/go/v4/messaging"
-	"gitlab.com/pennersr/shove/internal/services"
+	"github.com/mattstrayer/shove/internal/services"
 	"golang.org/x/exp/slog"
 )
 

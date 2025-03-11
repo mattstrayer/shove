@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/mattstrayer/shove/internal/services"
 	"github.com/sideshow/apns2"
 	"github.com/sideshow/apns2/token"
-	"gitlab.com/pennersr/shove/internal/services"
 	"golang.org/x/exp/slog"
 )
 

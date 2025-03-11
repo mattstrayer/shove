@@ -1,11 +1,10 @@
-module gitlab.com/pennersr/shove
+module github.com/mattstrayer/shove
 
 go 1.24.0
 
 require (
 	firebase.google.com/go/v4 v4.13.0
 	github.com/SherClockHolmes/webpush-go v1.2.0
-	github.com/gomodule/redigo v1.9.2
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/prometheus/client_golang v1.14.0
 	github.com/redis/go-redis/v9 v9.5.1
@@ -38,6 +37,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/stretchr/testify v1.8.4 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/net v0.36.0 // indirect

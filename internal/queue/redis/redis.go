@@ -5,9 +5,14 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/mattstrayer/shove/internal/queue"
 	"github.com/redis/go-redis/v9"
-	"gitlab.com/pennersr/shove/internal/queue"
 )
+
+// ListName returns the Redis list name for a given service ID
+func ListName(id string) string {
+	return fmt.Sprintf("shove:queue:%s", id)
+}
 
 type redisQueue struct {
 	client *redis.Client

@@ -1,9 +1,10 @@
 package shove
 
 import (
-	"github.com/gomodule/redigo/redis"
-	shvredis "gitlab.com/pennersr/shove/internal/queue/redis"
-	"time"
+	"context"
+	"fmt"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // Client ...
@@ -12,28 +13,29 @@ type Client interface {
 }
 
 type redisClient struct {
-	pool *redis.Pool
+	client *redis.Client
 }
 
 // NewRedisClient ...
 func NewRedisClient(redisURL string) Client {
-	rc := &redisClient{
-		pool: &redis.Pool{
-			MaxIdle:     3,
-			IdleTimeout: 240 * time.Second,
-			Dial: func() (redis.Conn, error) {
-				return redis.DialURL(redisURL)
-			},
-		},
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		panic(err)
 	}
-	return rc
+
+	client := redis.NewClient(opt)
+	return &redisClient{
+		client: client,
+	}
+}
+
+func queueName(id string) string {
+	return fmt.Sprintf("shove:%s", id)
 }
 
 // PushRaw ...
 func (rc *redisClient) PushRaw(id string, data []byte) (err error) {
-	waitingList := shvredis.ListName(id)
-	conn := rc.pool.Get()
-	defer conn.Close()
-	_, err = conn.Do("RPUSH", waitingList, data)
-	return
+	waitingList := queueName(id)
+	ctx := context.Background()
+	return rc.client.LPush(ctx, waitingList, data).Err()
 }

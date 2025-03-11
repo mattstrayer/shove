@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/mattstrayer/shove/internal/queue"
+	"github.com/mattstrayer/shove/internal/services"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gitlab.com/pennersr/shove/internal/queue"
-	"gitlab.com/pennersr/shove/internal/services"
 	"golang.org/x/exp/slog"
 )
 
