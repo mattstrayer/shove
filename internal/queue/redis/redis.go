@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/redis/go-redis/v9"
 	"gitlab.com/pennersr/shove/internal/queue"
@@ -28,30 +29,45 @@ func (m queuedMessage) Message() []byte {
 
 // NewQueueFactory creates a new Redis queue factory
 func NewQueueFactory(redisURL string) queue.QueueFactory {
+	log.Printf("Connecting to Redis at: %s", redisURL)
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		panic(err)
 	}
 
 	client := redis.NewClient(opt)
+
+	// Test connection
+	ctx := context.Background()
+	if err := client.Ping(ctx).Err(); err != nil {
+		log.Printf("Redis connection error: %v", err)
+		panic(err)
+	}
+	log.Printf("Successfully connected to Redis")
+
 	return &redisQueueFactory{client: client}
 }
 
 func (f *redisQueueFactory) NewQueue(id string) (queue.Queue, error) {
+	key := fmt.Sprintf("shove:%s", id)
+	log.Printf("Creating new Redis queue with key: %s", key)
 	return &redisQueue{
 		client: f.client,
-		key:    fmt.Sprintf("shove:queue:%s", id),
+		key:    key,
 	}, nil
 }
 
 func (q *redisQueue) Queue(data []byte) error {
 	ctx := context.Background()
+	log.Printf("Pushing message to queue: %s", q.key)
 	return q.client.LPush(ctx, q.key, data).Err()
 }
 
 func (q *redisQueue) Get(ctx context.Context) (queue.QueuedMessage, error) {
+	log.Printf("Waiting for message from queue: %s", q.key)
 	result := q.client.BRPop(ctx, 0, q.key)
 	if result.Err() != nil {
+		log.Printf("Error getting message from queue %s: %v", q.key, result.Err())
 		return nil, result.Err()
 	}
 
@@ -60,6 +76,7 @@ func (q *redisQueue) Get(ctx context.Context) (queue.QueuedMessage, error) {
 		return nil, fmt.Errorf("unexpected redis response")
 	}
 
+	log.Printf("Received message from queue: %s", q.key)
 	return &queuedMessage{
 		data: []byte(values[1]),
 		id:   values[1],
