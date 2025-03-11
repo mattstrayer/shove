@@ -49,24 +49,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-buildx-
 
-      # Generate SBOM
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          format: spdx-json
-          artifact-name: sbom.json
-
-      # Scan for vulnerabilities
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: 'mattstrayer/shove:${{ steps.meta.outputs.version }}'
-          format: 'table'
-          exit-code: '1'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -84,3 +66,23 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      # Generate SBOM
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: spdx-json
+          artifact-name: sbom.json
+
+      # Scan for vulnerabilities
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'mattstrayer/shove:${{ steps.meta.outputs.version }}'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          skip-files: true
+          skip-dirs: true
