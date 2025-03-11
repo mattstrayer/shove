@@ -1,19 +1,16 @@
 module gitlab.com/pennersr/shove
 
-go 1.23.0
-
-toolchain go1.24.0
+go 1.24.0
 
 require (
 	firebase.google.com/go/v4 v4.13.0
 	github.com/SherClockHolmes/webpush-go v1.2.0
-	github.com/gomodule/redigo v2.0.0+incompatible
+	github.com/gomodule/redigo v1.9.2
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/prometheus/client_golang v1.14.0
+	github.com/redis/go-redis/v9 v9.5.1
 	github.com/sideshow/apns2 v0.25.0
-	gitlab.com/pennersr/redq v0.0.0-20210323185356-5c672ce9cd53
 	golang.org/x/exp v0.0.0-20231110203233-9a3e6036ecaa
-	google.golang.org/api v0.114.0
 )
 
 require github.com/google/go-cmp v0.6.0 // indirect
@@ -29,6 +26,7 @@ require (
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
@@ -49,10 +47,10 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
+	google.golang.org/api v0.114.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/appengine/v2 v2.0.2 // indirect
 	google.golang.org/genproto v0.0.0-20230410155749-daa745c078e1 // indirect
 	google.golang.org/grpc v1.56.3 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
-
 )

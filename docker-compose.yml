@@ -1,0 +1,57 @@
+version: "3.8"
+
+services:
+  shove:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8322:8322"
+    environment:
+      - QUEUE_REDIS=redis://redis:6379
+      # Uncomment and set these values when testing
+      # - APNS_KEY_ID=your_key_id
+      # - APNS_TEAM_ID=your_team_id
+      # - APNS_SANDBOX_KEY_ID=your_sandbox_key_id
+      # - APNS_SANDBOX_TEAM_ID=your_sandbox_team_id
+    volumes:
+      # Mount your APNS auth key files
+      - /Users/matt/dev/vandal/secrets/apns/production.p8:/etc/shove/apns/production/key.p8:ro
+      - /Users/matt/dev/vandal/secrets/apns/sandbox.p8:/etc/shove/apns/sandbox/key.p8:ro
+    command: >
+      -apns-auth-key-path /etc/shove/apns/production/key.p8
+      -apns-sandbox-auth-key-path /etc/shove/apns/sandbox/key.p8
+      -apns-workers 2
+      -debug true
+    depends_on:
+      - redis
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8322/health",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  redis_data:
