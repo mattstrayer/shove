@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/mattstrayer/shove/internal/queue"
 	"github.com/redis/go-redis/v9"
@@ -34,6 +35,11 @@ func NewQueueFactory(redisURL string) queue.QueueFactory {
 	if err != nil {
 		panic(err)
 	}
+
+	// Configure connection pool settings
+	opt.PoolSize = 50                  // Increase from default 10
+	opt.MinIdleConns = 10              // Maintain some minimum idle connections
+	opt.PoolTimeout = time.Second * 30 // Increase timeout for getting connection from pool
 
 	client := redis.NewClient(opt)
 
