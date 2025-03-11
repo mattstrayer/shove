@@ -9,6 +9,7 @@ jobs:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     environment: prod
+    timeout-minutes: 30  # Add timeout to prevent infinite hangs
 
     steps:
       - name: Check out the repo
@@ -60,6 +61,13 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BUILDKIT_PROGRESS=plain
+            GOOS=linux
+            GOARCH=amd64
+            CGO_ENABLED=0
+          provenance: true
+          outputs: type=registry,compression=zstd
 
       # Move cache
       - name: Move cache
