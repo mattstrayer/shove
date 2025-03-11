@@ -3,8 +3,9 @@ package memory
 import (
 	"context"
 	"errors"
-	"gitlab.com/pennersr/shove/internal/queue"
 	"sync"
+
+	"github.com/mattstrayer/shove/internal/queue"
 )
 
 // MemoryQueueFactory ...

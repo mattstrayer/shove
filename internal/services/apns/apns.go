@@ -1,29 +1,56 @@
 package apns
 
 import (
-	"crypto/tls"
-	"github.com/sideshow/apns2"
-	"github.com/sideshow/apns2/certificate"
-	"gitlab.com/pennersr/shove/internal/services"
-	"golang.org/x/exp/slog"
+	"crypto/ecdsa"
+	"crypto/x509"
+	"encoding/pem"
+	"io/ioutil"
 	"time"
+
+	"log/slog"
+
+	"github.com/mattstrayer/shove/internal/services"
+	"github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/token"
 )
 
 // APNS ...
 type APNS struct {
 	production bool
 	log        *slog.Logger
-	cert       tls.Certificate
+	keyID      string
+	teamID     string
+	authKey    *ecdsa.PrivateKey
 }
 
 // NewAPNS ...
-func NewAPNS(pemFile string, production bool, log *slog.Logger) (apns *APNS, err error) {
-	cert, err := certificate.FromPemFile(pemFile, "")
+func NewAPNS(authKeyPath, keyID, teamID string, production bool, log *slog.Logger) (apns *APNS, err error) {
+	// Read the auth key file
+	authKeyBytes, err := ioutil.ReadFile(authKeyPath)
 	if err != nil {
-		return
+		return nil, err
 	}
+
+	// Parse the auth key
+	block, _ := pem.Decode(authKeyBytes)
+	if block == nil {
+		return nil, err
+	}
+
+	parsedKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, err
+	}
+
+	authKey, ok := parsedKey.(*ecdsa.PrivateKey)
+	if !ok {
+		return nil, err
+	}
+
 	apns = &APNS{
-		cert:       cert,
+		authKey:    authKey,
+		keyID:      keyID,
+		teamID:     teamID,
 		production: production,
 		log:        log,
 	}
@@ -35,7 +62,13 @@ func (apns *APNS) Logger() *slog.Logger {
 }
 
 func (apns *APNS) NewClient() (pclient services.PumpClient, err error) {
-	client := apns2.NewClient(apns.cert)
+	authToken := &token.Token{
+		AuthKey: apns.authKey,
+		KeyID:   apns.keyID,
+		TeamID:  apns.teamID,
+	}
+
+	client := apns2.NewTokenClient(authToken)
 	if apns.production {
 		client.Production()
 	} else {

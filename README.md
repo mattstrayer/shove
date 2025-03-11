@@ -1,6 +1,6 @@
 # When push comes to shove...
 
-[![Go Report Card](https://goreportcard.com/badge/gitlab.com/pennersr/shove)](https://goreportcard.com/report/gitlab.com/pennersr/shove) [![Written in Emacs](https://pennersr.github.io/img/emacs-badge.svg)](https://www.gnu.org/software/emacs/) [![Pipeline Status](https://gitlab.com/pennersr/shove/badges/master/pipeline.svg)](https://gitlab.com/pennersr/shove/-/pipelines)
+[![Go Report Card](https://goreportcard.com/badge/github.com/mattstrayer/shove)](https://goreportcard.com/report/github.com/mattstrayer/shove) [![Written in Emacs](https://pennersr.github.io/img/emacs-badge.svg)](https://www.gnu.org/software/emacs/) [![Pipeline Status](https://github.com/mattstrayer/shove/badges/master/pipeline.svg)](https://github.com/mattstrayer/shove/-/pipelines)
 
 ## Background
 
@@ -105,7 +105,32 @@ Start the server:
 
 Push an APNS notification:
 
-    $ curl  -i  --data '{"service": "apns", "headers": {"apns-priority": 10, "apns-topic": "com.shove.app"}, "payload": {"aps": { "alert": "hi"}}, "token": "81b8ecff8cb6d22154404d43b9aeaaf6219dfbef2abb2fe313f3725f4505cb47"}' http://localhost:8322/api/push/apns
+```bash
+$ curl  -i  --data '{"service": "apns", "headers": {"apns-priority": 10, "apns-topic": "com.shove.app"}, "payload": {"aps": { "alert": "hi"}}, "token": "81b8ecff8cb6d22154404d43b9aeaaf6219dfbef2abb2fe313f3725f4505cb47"}' http://localhost:8322/api/push/apns
+```
+
+APNS configuration options:
+- `-apns-auth-key-path`: Path to the APNS authentication key file (.p8)
+- `-apns-key-id`: Key ID from Apple Developer account
+- `-apns-team-id`: Team ID from Apple Developer account
+- `-apns-workers`: The number of workers pushing APNS messages (default 4)
+
+For sandbox environment:
+- `-apns-sandbox-auth-key-path`: Path to the APNS sandbox authentication key file (.p8)
+- `-apns-sandbox-key-id`: Sandbox Key ID from Apple Developer account
+- `-apns-sandbox-team-id`: Sandbox Team ID from Apple Developer account
+
+Example:
+```bash
+$ shove \
+  -apns-auth-key-path /etc/shove/apns/production/AuthKey_ABCD1234.p8 \
+  -apns-key-id ABCD1234 \
+  -apns-team-id XYZ1234567 \
+  -apns-sandbox-auth-key-path /etc/shove/apns/sandbox/AuthKey_EFGH5678.p8 \
+  -apns-sandbox-key-id EFGH5678 \
+  -apns-sandbox-team-id XYZ1234567 \
+  -apns-workers 4
+```
 
 
 A successful push results in:
@@ -232,7 +257,7 @@ over a raw payload. Here's an example:
 
     import (
     	"encoding/json"
-    	"gitlab.com/pennersr/shove/pkg/shove"
+    	"github.com/mattstrayer/shove/pkg/shove"
     	"log"
     	"os"
     )

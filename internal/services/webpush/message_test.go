@@ -2,7 +2,7 @@ package webpush
 
 import (
 	"fmt"
-	"golang.org/x/exp/slog"
+	"log/slog"
 	"os"
 	"testing"
 )

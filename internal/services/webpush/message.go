@@ -2,8 +2,9 @@ package webpush
 
 import (
 	"encoding/json"
+
 	wpg "github.com/SherClockHolmes/webpush-go"
-	"gitlab.com/pennersr/shove/internal/services"
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 type webPushMessage struct {

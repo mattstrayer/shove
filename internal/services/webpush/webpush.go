@@ -1,12 +1,14 @@
 package webpush
 
 import (
-	wpg "github.com/SherClockHolmes/webpush-go"
-	"gitlab.com/pennersr/shove/internal/queue"
-	"gitlab.com/pennersr/shove/internal/services"
-	"golang.org/x/exp/slog"
 	"net/http"
 	"time"
+
+	"log/slog"
+
+	wpg "github.com/SherClockHolmes/webpush-go"
+	"github.com/mattstrayer/shove/internal/queue"
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 // WebPush ...

@@ -2,12 +2,14 @@ package server
 
 import (
 	"context"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"gitlab.com/pennersr/shove/internal/queue"
-	"gitlab.com/pennersr/shove/internal/services"
-	"golang.org/x/exp/slog"
 	"net/http"
 	"sync"
+
+	"log/slog"
+
+	"github.com/mattstrayer/shove/internal/queue"
+	"github.com/mattstrayer/shove/internal/services"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // Server ...
@@ -37,6 +39,7 @@ func NewServer(addr string, qf queue.QueueFactory) (s *Server) {
 	mux.HandleFunc("/api/push/", s.handlePush)
 	mux.HandleFunc("/api/feedback", s.handleFeedback)
 	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/health", s.handleHealth)
 	return s
 }
 
@@ -82,4 +85,9 @@ func (s *Server) AddService(pp services.PushService, workers int, squash service
 	go w.serve(workers, squash, s)
 	s.workers[pp.ID()] = w
 	return
+}
+
+func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }

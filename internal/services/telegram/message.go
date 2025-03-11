@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gitlab.com/pennersr/shove/internal/services"
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 type telegramMessage struct {

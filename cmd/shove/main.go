@@ -4,24 +4,24 @@ import (
 	"context"
 	"flag"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
 
-	"gitlab.com/pennersr/shove/internal/queue"
-	"gitlab.com/pennersr/shove/internal/queue/memory"
-	"gitlab.com/pennersr/shove/internal/queue/redis"
-	"gitlab.com/pennersr/shove/internal/server"
-	"gitlab.com/pennersr/shove/internal/services"
-	"gitlab.com/pennersr/shove/internal/services/apns"
-	"gitlab.com/pennersr/shove/internal/services/email"
-	"gitlab.com/pennersr/shove/internal/services/fcm"
-	"gitlab.com/pennersr/shove/internal/services/telegram"
-	"gitlab.com/pennersr/shove/internal/services/webhook"
-	"gitlab.com/pennersr/shove/internal/services/webpush"
-	"golang.org/x/exp/slog"
+	"github.com/mattstrayer/shove/internal/queue"
+	"github.com/mattstrayer/shove/internal/queue/memory"
+	"github.com/mattstrayer/shove/internal/queue/redis"
+	"github.com/mattstrayer/shove/internal/server"
+	"github.com/mattstrayer/shove/internal/services"
+	"github.com/mattstrayer/shove/internal/services/apns"
+	"github.com/mattstrayer/shove/internal/services/email"
+	"github.com/mattstrayer/shove/internal/services/fcm"
+	"github.com/mattstrayer/shove/internal/services/telegram"
+	"github.com/mattstrayer/shove/internal/services/webhook"
+	"github.com/mattstrayer/shove/internal/services/webpush"
 )
 
 // from -> https://www.gmarik.info/blog/2019/12-factor-golang-flag-package/
@@ -58,8 +58,6 @@ func LookupEnvOrBool(key string, defaultVal bool) bool {
 var debug = flag.Bool("debug", LookupEnvOrBool("DEBUG", false), "Enable debug logging")
 var apiAddr = flag.String("api-addr", LookupEnvOrString("API_ADDR", ":8322"), "API address to listen to")
 
-var apnsCertificate = flag.String("apns-certificate-path", LookupEnvOrString("APNS_CERTIFICATE_PATH", ""), "APNS certificate path")
-var apnsSandboxCertificate = flag.String("apns-sandbox-certificate-path", LookupEnvOrString("APNS_SANDBOX_CERTIFICATE_PATH", ""), "APNS sandbox certificate path")
 var apnsWorkers = flag.Int("apns-workers", LookupEnvOrInt("APNS_WORKERS", 4), "The number of workers pushing APNS messages")
 
 // this must be set as an environment variable
@@ -88,6 +86,15 @@ var emailTLS = flag.Bool("email-tls", LookupEnvOrBool("EMAIL_TLS", false), "Use 
 var emailTLSInsecure = flag.Bool("email-tls-insecure", LookupEnvOrBool("EMAIL_TLS_INSECURE", false), "Skip TLS verification")
 var emailRateAmount = flag.Int("email-rate-amount", LookupEnvOrInt("EMAIL_RATE_AMOUNT", 0), "Email max. rate (amount)")
 var emailRatePer = flag.Int("email-rate-per", LookupEnvOrInt("EMAIL_RATE_PER", 0), "Email max. rate (per seconds)")
+
+var (
+	apnsAuthKeyPath        = flag.String("apns-auth-key-path", LookupEnvOrString("APNS_AUTH_KEY_PATH", ""), "APNS authentication key path (.p8 file)")
+	apnsKeyID              = flag.String("apns-key-id", LookupEnvOrString("APNS_KEY_ID", ""), "APNS Key ID from Apple Developer account")
+	apnsTeamID             = flag.String("apns-team-id", LookupEnvOrString("APNS_TEAM_ID", ""), "APNS Team ID from Apple Developer account")
+	apnsSandboxAuthKeyPath = flag.String("apns-sandbox-auth-key-path", LookupEnvOrString("APNS_SANDBOX_AUTH_KEY_PATH", ""), "APNS sandbox authentication key path (.p8 file)")
+	apnsSandboxKeyID       = flag.String("apns-sandbox-key-id", LookupEnvOrString("APNS_SANDBOX_KEY_ID", ""), "APNS sandbox Key ID from Apple Developer account")
+	apnsSandboxTeamID      = flag.String("apns-sandbox-team-id", LookupEnvOrString("APNS_SANDBOX_TEAM_ID", ""), "APNS sandbox Team ID from Apple Developer account")
+)
 
 func newLogger() *slog.Logger {
 	var opts *slog.HandlerOptions
@@ -126,10 +133,10 @@ func main() {
 	}
 	s := server.NewServer(*apiAddr, qf)
 
-	if *apnsCertificate != "" {
-		apns, err := apns.NewAPNS(*apnsCertificate, true, newServiceLogger("apns"))
+	if *apnsAuthKeyPath != "" {
+		apns, err := apns.NewAPNS(*apnsAuthKeyPath, *apnsKeyID, *apnsTeamID, true, logger)
 		if err != nil {
-			slog.Error("Failed to setup APNS service", "error", err)
+			logger.Error("Failed to initialize APNS", "error", err)
 			os.Exit(1)
 		}
 		if err := s.AddService(apns, *apnsWorkers, services.SquashConfig{}); err != nil {
@@ -138,10 +145,10 @@ func main() {
 		}
 	}
 
-	if *apnsSandboxCertificate != "" {
-		apns, err := apns.NewAPNS(*apnsSandboxCertificate, false, newServiceLogger("apns-sandbox"))
+	if *apnsSandboxAuthKeyPath != "" {
+		apns, err := apns.NewAPNS(*apnsSandboxAuthKeyPath, *apnsSandboxKeyID, *apnsSandboxTeamID, false, logger)
 		if err != nil {
-			slog.Error("Failed to setup APNS sandbox service", "error", err)
+			logger.Error("Failed to initialize APNS sandbox", "error", err)
 			os.Exit(1)
 		}
 		if err := s.AddService(apns, *apnsWorkers, services.SquashConfig{}); err != nil {

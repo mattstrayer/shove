@@ -6,7 +6,7 @@ import (
 	"net/smtp"
 	"time"
 
-	"gitlab.com/pennersr/shove/internal/services"
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 func (ec EmailConfig) send(from string, to []string, body []byte, fc services.FeedbackCollector) error {

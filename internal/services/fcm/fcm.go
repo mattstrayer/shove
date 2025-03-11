@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"log/slog"
+
 	firebase "firebase.google.com/go/v4"
 	errorutils "firebase.google.com/go/v4/errorutils"
 	"firebase.google.com/go/v4/messaging"
-	"gitlab.com/pennersr/shove/internal/services"
-	"golang.org/x/exp/slog"
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 // FCM ...
@@ -23,14 +24,14 @@ type FCM struct {
 func NewFCM(log *slog.Logger) (fcm *FCM, err error) {
 	app, err := firebase.NewApp(context.Background(), nil)
 	if err != nil {
-		fcm.log.Error("error initializing Firebase app: %v\n", err)
+		fcm.log.Error("error initializing Firebase app", "error", err)
 		return nil, err
 	}
 
 	ctx := context.Background()
 	client, err := app.Messaging(ctx)
 	if err != nil {
-		fcm.log.Error("error getting FCM Messaging client: %v\n", err)
+		fcm.log.Error("error getting FCM Messaging client", "error", err)
 	}
 
 	fcm = &FCM{
@@ -87,7 +88,7 @@ func (fcm *FCM) PushMessage(pclient services.PumpClient, smsg services.ServiceMe
 	message := messaging.Message{}
 	err := json.Unmarshal(msg.rawData, &message)
 	if err != nil {
-		fcm.log.Error("Error unmarshalling message:", err)
+		fcm.log.Error("error unmarshalling message", "error", err)
 		return services.PushStatusHardFail
 	}
 

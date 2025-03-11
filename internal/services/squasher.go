@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"gitlab.com/pennersr/shove/internal/queue"
+	"github.com/mattstrayer/shove/internal/queue"
 )
 
 type batch struct {

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/exp/slog"
 	"net/http"
 	"strings"
 	"time"
 
-	"gitlab.com/pennersr/shove/internal/services"
+	"log/slog"
+
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 // TelegramService ...

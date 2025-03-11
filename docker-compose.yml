@@ -1,0 +1,33 @@
+services:
+  shove:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8322:8322"
+    env_file:
+      - .env
+    volumes:
+      # Mount your APNS auth key files
+      - /Users/matt/dev/vandal/secrets/apns/production.p8:/etc/shove/apns/production/key.p8:ro
+      - /Users/matt/dev/vandal/secrets/apns/sandbox.p8:/etc/shove/apns/sandbox/key.p8:ro
+    command: >
+      -apns-auth-key-path /etc/shove/apns/production/key.p8
+      -apns-sandbox-auth-key-path /etc/shove/apns/sandbox/key.p8
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8322/health",
+        ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s

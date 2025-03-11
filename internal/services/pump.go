@@ -2,12 +2,13 @@ package services
 
 import (
 	"context"
-	"golang.org/x/exp/slog"
 	"math"
 	"sync"
 	"time"
 
-	"gitlab.com/pennersr/shove/internal/queue"
+	"log/slog"
+
+	"github.com/mattstrayer/shove/internal/queue"
 )
 
 type Pump struct {

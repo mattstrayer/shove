@@ -1,9 +1,9 @@
 package email
 
 import (
-	"golang.org/x/exp/slog"
+	"log/slog"
 
-	"gitlab.com/pennersr/shove/internal/services"
+	"github.com/mattstrayer/shove/internal/services"
 )
 
 const serviceID = "email"
