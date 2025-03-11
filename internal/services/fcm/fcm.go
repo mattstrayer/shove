@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"log/slog"
+
 	firebase "firebase.google.com/go/v4"
 	errorutils "firebase.google.com/go/v4/errorutils"
 	"firebase.google.com/go/v4/messaging"
 	"github.com/mattstrayer/shove/internal/services"
-	"golang.org/x/exp/slog"
 )
 
 // FCM ...

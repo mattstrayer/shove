@@ -3,9 +3,10 @@ package server
 import (
 	"context"
 
+	"log/slog"
+
 	"github.com/mattstrayer/shove/internal/queue"
 	"github.com/mattstrayer/shove/internal/services"
-	"golang.org/x/exp/slog"
 )
 
 type worker struct {

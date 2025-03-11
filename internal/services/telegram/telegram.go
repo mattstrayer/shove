@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/exp/slog"
+	"log/slog"
 
 	"github.com/mattstrayer/shove/internal/services"
 )

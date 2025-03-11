@@ -2,7 +2,7 @@ package server
 
 import (
 	"encoding/json"
-	"golang.org/x/exp/slog"
+	"log/slog"
 	"net/http"
 )
 

@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"time"
 
+	"log/slog"
+
 	"github.com/mattstrayer/shove/internal/services"
-	"golang.org/x/exp/slog"
 )
 
 type Webhook struct {

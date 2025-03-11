@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"sync"
 
+	"log/slog"
+
 	"github.com/mattstrayer/shove/internal/queue"
 	"github.com/mattstrayer/shove/internal/services"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"golang.org/x/exp/slog"
 )
 
 // Server ...

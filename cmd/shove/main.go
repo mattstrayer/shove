@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strconv"
@@ -21,7 +22,6 @@ import (
 	"github.com/mattstrayer/shove/internal/services/telegram"
 	"github.com/mattstrayer/shove/internal/services/webhook"
 	"github.com/mattstrayer/shove/internal/services/webpush"
-	"golang.org/x/exp/slog"
 )
 
 // from -> https://www.gmarik.info/blog/2019/12-factor-golang-flag-package/

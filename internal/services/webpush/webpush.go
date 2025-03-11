@@ -4,10 +4,11 @@ import (
 	"net/http"
 	"time"
 
+	"log/slog"
+
 	wpg "github.com/SherClockHolmes/webpush-go"
 	"github.com/mattstrayer/shove/internal/queue"
 	"github.com/mattstrayer/shove/internal/services"
-	"golang.org/x/exp/slog"
 )
 
 // WebPush ...

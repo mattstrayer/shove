@@ -9,11 +9,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// ListName returns the Redis list name for a given service ID
-func ListName(id string) string {
-	return fmt.Sprintf("shove:%s", id)
-}
-
 type redisQueue struct {
 	client *redis.Client
 	key    string
