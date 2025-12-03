@@ -24,14 +24,15 @@ type FCM struct {
 func NewFCM(log *slog.Logger) (fcm *FCM, err error) {
 	app, err := firebase.NewApp(context.Background(), nil)
 	if err != nil {
-		fcm.log.Error("error initializing Firebase app", "error", err)
+		log.Error("error initializing Firebase app", "error", err)
 		return nil, err
 	}
 
 	ctx := context.Background()
 	client, err := app.Messaging(ctx)
 	if err != nil {
-		fcm.log.Error("error getting FCM Messaging client", "error", err)
+		log.Error("error getting FCM Messaging client", "error", err)
+		return nil, err
 	}
 
 	fcm = &FCM{
