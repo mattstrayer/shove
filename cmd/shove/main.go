@@ -63,6 +63,7 @@ var apnsWorkers = flag.Int("apns-workers", LookupEnvOrInt("APNS_WORKERS", 4), "T
 
 // this must be set as an environment variable
 var googleApplicationCredentials = flag.String("google-application-credentials", LookupEnvOrString("GOOGLE_APPLICATION_CREDENTIALS", ""), "Google application credentials path")
+var googleApplicationCredentialsJSON = flag.String("google-application-credentials-json", LookupEnvOrString("GOOGLE_APPLICATION_CREDENTIALS_JSON", ""), "Google application credentials (base64-encoded JSON)")
 var fcmWorkers = flag.Int("fcm-workers", LookupEnvOrInt("FCM_WORKERS", 4), "The number of workers pushing FCM messages")
 
 var redisHost = flag.String("redis-host", LookupEnvOrString("REDIS_HOST", ""), "Redis host")
@@ -185,16 +186,24 @@ func main() {
 		slog.Warn("APNS_SANDBOX_AUTH_KEY_PATH or APNS_SANDBOX_AUTH_KEY not set, APNS sandbox service will not process messages from shove:apns-sandbox queue")
 	}
 
-	if *googleApplicationCredentials != "" {
-		fcm, err := fcm.NewFCM(newServiceLogger("fcm"))
+	if *googleApplicationCredentials != "" || *googleApplicationCredentialsJSON != "" {
+		var fcmService *fcm.FCM
+		var err error
+		if *googleApplicationCredentialsJSON != "" {
+			fcmService, err = fcm.NewFCMFromBase64(*googleApplicationCredentialsJSON, newServiceLogger("fcm"))
+		} else {
+			fcmService, err = fcm.NewFCM(newServiceLogger("fcm"))
+		}
 		if err != nil {
 			slog.Error("Failed to setup FCM service", "error", err)
 			os.Exit(1)
 		}
-		if err := s.AddService(fcm, *fcmWorkers, services.SquashConfig{}); err != nil {
+		if err := s.AddService(fcmService, *fcmWorkers, services.SquashConfig{}); err != nil {
 			slog.Error("Failed to add FCM service", "error", err)
 			os.Exit(1)
 		}
+	} else {
+		slog.Warn("GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_APPLICATION_CREDENTIALS_JSON not set, FCM service will not process messages from shove:fcm queue")
 	}
 
 	if *webhookWorkers > 0 {

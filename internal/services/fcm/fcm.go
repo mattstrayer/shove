@@ -2,8 +2,10 @@ package fcm
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"log/slog"
@@ -12,6 +14,7 @@ import (
 	errorutils "firebase.google.com/go/v4/errorutils"
 	"firebase.google.com/go/v4/messaging"
 	"github.com/mattstrayer/shove/internal/services"
+	"google.golang.org/api/option"
 )
 
 // FCM ...
@@ -20,7 +23,7 @@ type FCM struct {
 	log    *slog.Logger
 }
 
-// NewFCM ...
+// NewFCM creates a new FCM service using GOOGLE_APPLICATION_CREDENTIALS file path
 func NewFCM(log *slog.Logger) (fcm *FCM, err error) {
 	app, err := firebase.NewApp(context.Background(), nil)
 	if err != nil {
@@ -40,6 +43,44 @@ func NewFCM(log *slog.Logger) (fcm *FCM, err error) {
 		log:    log,
 	}
 	return
+}
+
+// NewFCMFromJSON creates a new FCM service from JSON credentials bytes
+func NewFCMFromJSON(credentialsJSON []byte, log *slog.Logger) (fcm *FCM, err error) {
+	opt := option.WithCredentialsJSON(credentialsJSON)
+	app, err := firebase.NewApp(context.Background(), nil, opt)
+	if err != nil {
+		log.Error("error initializing Firebase app", "error", err)
+		return nil, err
+	}
+
+	ctx := context.Background()
+	client, err := app.Messaging(ctx)
+	if err != nil {
+		log.Error("error getting FCM Messaging client", "error", err)
+		return nil, err
+	}
+
+	fcm = &FCM{
+		client: client,
+		log:    log,
+	}
+	return
+}
+
+// NewFCMFromBase64 creates a new FCM service from base64-encoded JSON credentials
+func NewFCMFromBase64(credentialsBase64 string, log *slog.Logger) (fcm *FCM, err error) {
+	// Remove any whitespace/newlines
+	credentialsBase64 = strings.TrimSpace(credentialsBase64)
+	credentialsBase64 = strings.ReplaceAll(credentialsBase64, "\n", "")
+	credentialsBase64 = strings.ReplaceAll(credentialsBase64, " ", "")
+
+	credentialsJSON, err := base64.StdEncoding.DecodeString(credentialsBase64)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewFCMFromJSON(credentialsJSON, log)
 }
 
 func (fcm *FCM) Logger() *slog.Logger {

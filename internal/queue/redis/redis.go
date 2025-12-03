@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/url"
 	"time"
 
 	"github.com/mattstrayer/shove/internal/queue"
@@ -31,16 +30,11 @@ func (m queuedMessage) Message() []byte {
 
 // NewQueueFactory creates a new Redis queue factory
 func NewQueueFactory(redisURL string) queue.QueueFactory {
-	u, err := url.Parse(redisURL)
-	host := "unknown"
-	if err == nil {
-		host = u.Hostname()
-	}
-	log.Printf("Connecting to Redis at: %s", host)
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		panic(err)
 	}
+	log.Printf("Connecting to Redis at: %s", opt.Addr)
 
 	// Configure connection pool settings
 	opt.PoolSize = 50                  // Increase from default 10

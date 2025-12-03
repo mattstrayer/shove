@@ -182,6 +182,28 @@ A successful push results in:
 
 ### FCM
 
+FCM configuration options:
+
+**Option 1: File path** (for local development or when mounting files)
+- `-google-application-credentials` or `GOOGLE_APPLICATION_CREDENTIALS`: Path to the Google application credentials JSON file
+- `-fcm-workers` or `FCM_WORKERS`: The number of workers pushing FCM messages (default 4)
+
+**Option 2: Base64-encoded JSON** (for cloud deployments like Digital Ocean App Platform)
+- `-google-application-credentials-json` or `GOOGLE_APPLICATION_CREDENTIALS_JSON`: Base64-encoded content of the Google application credentials JSON file
+- `-fcm-workers` or `FCM_WORKERS`: The number of workers pushing FCM messages (default 4)
+
+**Getting base64-encoded credentials:**
+
+To convert your Google credentials JSON file to base64:
+
+```bash
+# Linux
+base64 -i google-application-credentials.json | tr -d '\n'
+
+# macOS
+base64 -i google-application-credentials.json | tr -d '\n'
+```
+
 Push an FCM notification:
 
     $ curl  -i  --data '{"to": "feE8R6apOdA:AA91PbGHMX5HUoB-tbcqBO_e75NbiOc2AiFbGL3rrYtc99Z5ejbGmCCvOhKW5liqfOzRGOXxto5l7y6b_0dCc-AQ2_bXOcDkcPZgsXGbZvmEjaZA72DfVkZ2pfRrcpcc_9IiiRT5NYC", "notification": {"title": "Hello"}}' http://localhost:8322/api/push/fcm
