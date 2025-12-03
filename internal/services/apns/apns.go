@@ -3,8 +3,11 @@ package apns
 import (
 	"crypto/ecdsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/pem"
+	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"log/slog"
@@ -23,18 +26,21 @@ type APNS struct {
 	authKey    *ecdsa.PrivateKey
 }
 
-// NewAPNS ...
+// NewAPNS creates a new APNS service from a file path
 func NewAPNS(authKeyPath, keyID, teamID string, production bool, log *slog.Logger) (apns *APNS, err error) {
-	// Read the auth key file
 	authKeyBytes, err := ioutil.ReadFile(authKeyPath)
 	if err != nil {
 		return nil, err
 	}
+	return NewAPNSFromKey(authKeyBytes, keyID, teamID, production, log)
+}
 
+// NewAPNSFromKey creates a new APNS service from raw key bytes (PEM format)
+func NewAPNSFromKey(authKeyBytes []byte, keyID, teamID string, production bool, log *slog.Logger) (apns *APNS, err error) {
 	// Parse the auth key
 	block, _ := pem.Decode(authKeyBytes)
 	if block == nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to decode PEM block")
 	}
 
 	parsedKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
@@ -44,7 +50,7 @@ func NewAPNS(authKeyPath, keyID, teamID string, production bool, log *slog.Logge
 
 	authKey, ok := parsedKey.(*ecdsa.PrivateKey)
 	if !ok {
-		return nil, err
+		return nil, fmt.Errorf("key is not an ECDSA private key")
 	}
 
 	apns = &APNS{
@@ -55,6 +61,21 @@ func NewAPNS(authKeyPath, keyID, teamID string, production bool, log *slog.Logge
 		log:        log,
 	}
 	return
+}
+
+// NewAPNSFromBase64 creates a new APNS service from a base64-encoded key
+func NewAPNSFromBase64(authKeyBase64, keyID, teamID string, production bool, log *slog.Logger) (apns *APNS, err error) {
+	// Remove any whitespace/newlines
+	authKeyBase64 = strings.TrimSpace(authKeyBase64)
+	authKeyBase64 = strings.ReplaceAll(authKeyBase64, "\n", "")
+	authKeyBase64 = strings.ReplaceAll(authKeyBase64, " ", "")
+
+	authKeyBytes, err := base64.StdEncoding.DecodeString(authKeyBase64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64 key: %w", err)
+	}
+
+	return NewAPNSFromKey(authKeyBytes, keyID, teamID, production, log)
 }
 
 func (apns *APNS) Logger() *slog.Logger {

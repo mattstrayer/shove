@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 
@@ -73,8 +74,9 @@ func (s *Server) Shutdown(ctx context.Context) (err error) {
 
 // AddService ...
 func (s *Server) AddService(pp services.PushService, workers int, squash services.SquashConfig) (err error) {
-	slog.Info("Initializing service", "service", pp)
-	q, err := s.queueFactory.NewQueue(pp.ID())
+	serviceID := pp.ID()
+	slog.Info("Initializing service", "service", serviceID, "workers", workers, "queue", fmt.Sprintf("shove:%s", serviceID))
+	q, err := s.queueFactory.NewQueue(serviceID)
 	if err != nil {
 		return
 	}
@@ -83,7 +85,8 @@ func (s *Server) AddService(pp services.PushService, workers int, squash service
 		return
 	}
 	go w.serve(workers, squash, s)
-	s.workers[pp.ID()] = w
+	s.workers[serviceID] = w
+	slog.Info("Service started", "service", serviceID, "workers", workers)
 	return
 }
 

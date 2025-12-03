@@ -93,9 +93,11 @@ var emailRatePer = flag.Int("email-rate-per", LookupEnvOrInt("EMAIL_RATE_PER", 0
 
 var (
 	apnsAuthKeyPath        = flag.String("apns-auth-key-path", LookupEnvOrString("APNS_AUTH_KEY_PATH", ""), "APNS authentication key path (.p8 file)")
+	apnsAuthKey            = flag.String("apns-auth-key", LookupEnvOrString("APNS_AUTH_KEY", ""), "APNS authentication key (base64-encoded .p8 file content)")
 	apnsKeyID              = flag.String("apns-key-id", LookupEnvOrString("APNS_KEY_ID", ""), "APNS Key ID from Apple Developer account")
 	apnsTeamID             = flag.String("apns-team-id", LookupEnvOrString("APNS_TEAM_ID", ""), "APNS Team ID from Apple Developer account")
 	apnsSandboxAuthKeyPath = flag.String("apns-sandbox-auth-key-path", LookupEnvOrString("APNS_SANDBOX_AUTH_KEY_PATH", ""), "APNS sandbox authentication key path (.p8 file)")
+	apnsSandboxAuthKey    = flag.String("apns-sandbox-auth-key", LookupEnvOrString("APNS_SANDBOX_AUTH_KEY", ""), "APNS sandbox authentication key (base64-encoded .p8 file content)")
 	apnsSandboxKeyID       = flag.String("apns-sandbox-key-id", LookupEnvOrString("APNS_SANDBOX_KEY_ID", ""), "APNS sandbox Key ID from Apple Developer account")
 	apnsSandboxTeamID      = flag.String("apns-sandbox-team-id", LookupEnvOrString("APNS_SANDBOX_TEAM_ID", ""), "APNS sandbox Team ID from Apple Developer account")
 )
@@ -143,28 +145,44 @@ func main() {
 	}
 	s := server.NewServer(*apiAddr, qf)
 
-	if *apnsAuthKeyPath != "" {
-		apns, err := apns.NewAPNS(*apnsAuthKeyPath, *apnsKeyID, *apnsTeamID, true, logger)
+	if *apnsAuthKeyPath != "" || *apnsAuthKey != "" {
+		var apnsService *apns.APNS
+		var err error
+		if *apnsAuthKey != "" {
+			apnsService, err = apns.NewAPNSFromBase64(*apnsAuthKey, *apnsKeyID, *apnsTeamID, true, logger)
+		} else {
+			apnsService, err = apns.NewAPNS(*apnsAuthKeyPath, *apnsKeyID, *apnsTeamID, true, logger)
+		}
 		if err != nil {
 			logger.Error("Failed to initialize APNS", "error", err)
 			os.Exit(1)
 		}
-		if err := s.AddService(apns, *apnsWorkers, services.SquashConfig{}); err != nil {
+		if err := s.AddService(apnsService, *apnsWorkers, services.SquashConfig{}); err != nil {
 			slog.Error("Failed to add APNS service", "error", err)
 			os.Exit(1)
 		}
+	} else {
+		slog.Warn("APNS_AUTH_KEY_PATH or APNS_AUTH_KEY not set, APNS service will not process messages from shove:apns queue")
 	}
 
-	if *apnsSandboxAuthKeyPath != "" {
-		apns, err := apns.NewAPNS(*apnsSandboxAuthKeyPath, *apnsSandboxKeyID, *apnsSandboxTeamID, false, logger)
+	if *apnsSandboxAuthKeyPath != "" || *apnsSandboxAuthKey != "" {
+		var apnsService *apns.APNS
+		var err error
+		if *apnsSandboxAuthKey != "" {
+			apnsService, err = apns.NewAPNSFromBase64(*apnsSandboxAuthKey, *apnsSandboxKeyID, *apnsSandboxTeamID, false, logger)
+		} else {
+			apnsService, err = apns.NewAPNS(*apnsSandboxAuthKeyPath, *apnsSandboxKeyID, *apnsSandboxTeamID, false, logger)
+		}
 		if err != nil {
 			logger.Error("Failed to initialize APNS sandbox", "error", err)
 			os.Exit(1)
 		}
-		if err := s.AddService(apns, *apnsWorkers, services.SquashConfig{}); err != nil {
+		if err := s.AddService(apnsService, *apnsWorkers, services.SquashConfig{}); err != nil {
 			slog.Error("Failed to add APNS sandbox service", "error", err)
 			os.Exit(1)
 		}
+	} else {
+		slog.Warn("APNS_SANDBOX_AUTH_KEY_PATH or APNS_SANDBOX_AUTH_KEY not set, APNS sandbox service will not process messages from shove:apns-sandbox queue")
 	}
 
 	if *googleApplicationCredentials != "" {

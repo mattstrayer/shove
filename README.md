@@ -116,17 +116,38 @@ $ curl  -i  --data '{"service": "apns", "headers": {"apns-priority": 10, "apns-t
 ```
 
 APNS configuration options:
-- `-apns-auth-key-path`: Path to the APNS authentication key file (.p8)
-- `-apns-key-id`: Key ID from Apple Developer account
-- `-apns-team-id`: Team ID from Apple Developer account
-- `-apns-workers`: The number of workers pushing APNS messages (default 4)
+
+**Option 1: File path** (for local development or when mounting files)
+- `-apns-auth-key-path` or `APNS_AUTH_KEY_PATH`: Path to the APNS authentication key file (.p8)
+- `-apns-key-id` or `APNS_KEY_ID`: Key ID from Apple Developer account
+- `-apns-team-id` or `APNS_TEAM_ID`: Team ID from Apple Developer account
+- `-apns-workers` or `APNS_WORKERS`: The number of workers pushing APNS messages (default 4)
+
+**Option 2: Base64-encoded key** (for cloud deployments like Digital Ocean App Platform)
+- `-apns-auth-key` or `APNS_AUTH_KEY`: Base64-encoded content of the APNS authentication key file (.p8)
+- `-apns-key-id` or `APNS_KEY_ID`: Key ID from Apple Developer account
+- `-apns-team-id` or `APNS_TEAM_ID`: Team ID from Apple Developer account
+- `-apns-workers` or `APNS_WORKERS`: The number of workers pushing APNS messages (default 4)
 
 For sandbox environment:
-- `-apns-sandbox-auth-key-path`: Path to the APNS sandbox authentication key file (.p8)
-- `-apns-sandbox-key-id`: Sandbox Key ID from Apple Developer account
-- `-apns-sandbox-team-id`: Sandbox Team ID from Apple Developer account
+- `-apns-sandbox-auth-key-path` or `APNS_SANDBOX_AUTH_KEY_PATH`: Path to the APNS sandbox authentication key file (.p8)
+- `-apns-sandbox-auth-key` or `APNS_SANDBOX_AUTH_KEY`: Base64-encoded content of the APNS sandbox authentication key file (.p8)
+- `-apns-sandbox-key-id` or `APNS_SANDBOX_KEY_ID`: Sandbox Key ID from Apple Developer account
+- `-apns-sandbox-team-id` or `APNS_SANDBOX_TEAM_ID`: Sandbox Team ID from Apple Developer account
 
-Example:
+**Getting base64-encoded key content:**
+
+To convert your `.p8` file to base64 for use with `APNS_AUTH_KEY`:
+
+```bash
+# Linux
+base64 -i AuthKey_XXXXX.p8 | tr -d '\n'
+
+# macOS
+base64 -i AuthKey_XXXXX.p8 | tr -d '\n'
+```
+
+Example using file path:
 ```bash
 $ shove \
   -apns-auth-key-path /etc/shove/apns/production/AuthKey_ABCD1234.p8 \
@@ -136,6 +157,16 @@ $ shove \
   -apns-sandbox-key-id EFGH5678 \
   -apns-sandbox-team-id XYZ1234567 \
   -apns-workers 4
+```
+
+Example using environment variables with base64-encoded key:
+```bash
+export APNS_AUTH_KEY=$(base64 -i AuthKey_ABCD1234.p8 | tr -d '\n')
+export APNS_KEY_ID=ABCD1234
+export APNS_TEAM_ID=XYZ1234567
+export APNS_WORKERS=4
+
+$ shove
 ```
 
 
