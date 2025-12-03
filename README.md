@@ -70,8 +70,14 @@ Usage:
             FCM API key
       -fcm-workers int
             The number of workers pushing FCM messages (default 4)
-      -queue-redis string
-            Use Redis queue (Redis URL)
+      -redis-host string
+            Redis host
+      -redis-port string
+            Redis port (default "6379")
+      -redis-password string
+            Redis password
+      -redis-db string
+            Redis database number (default "0")
       -telegram-bot-token string
             Telegram bot token
       -telegram-rate-amount int
@@ -94,7 +100,7 @@ Start the server:
 
     $ shove \
         -api-addr localhost:8322 \
-        -queue-redis redis://redis:6379 \
+        -redis-host localhost \
         -fcm-api-key $FCM_API_KEY \
         -apns-certificate-path /etc/shove/apns/production/bundle.pem -apns-sandbox-certificate-path /etc/shove/apns/sandbox/bundle.pem \
         -webpush-vapid-public-key=$VAPID_PUBLIC_KEY -webpush-vapid-private-key=$VAPID_PRIVATE_KEY \
@@ -212,7 +218,7 @@ automatically digested.
         -api-addr localhost:8322 \
         -email-rate-amount 3 \
         -email-rate-per 10 \
-        -queue-redis redis://localhost:6379
+        -redis-host localhost
 
 Push an email:
 
@@ -221,7 +227,7 @@ Push an email:
 If you send too many emails, you'll notice that they are digested, and at a
 later time, one digest mail is being sent:
 
-    2021/03/23 21:15:57 Using Redis queue at redis://localhost:6379
+    2021/03/23 21:15:57 Using Redis queue host=localhost port=6379 db=0
     2021/03/23 21:15:57 Initializing Email service
     2021/03/23 21:15:57 Serving on localhost:8322
     2021/03/23 21:15:57 Shove server started
@@ -246,6 +252,25 @@ notifications directly to a Redis queue.
 Posting directly to the Redis queue, instead of using the HTTP service
 endpoints, has the advantage that you can take Shove offline without disturbing
 the operation of the clients pushing the notifications.
+
+#### Redis Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `REDIS_HOST` | (required) | Redis host |
+| `REDIS_PORT` | `6379` | Redis port |
+| `REDIS_PASSWORD` | (empty) | Redis password |
+| `REDIS_DB` | `0` | Redis database number |
+
+Example:
+```bash
+REDIS_HOST=10.116.0.3
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+```
+
+If `REDIS_HOST` is not set, Shove falls back to a non-persistent in-memory queue.
 
 Shove intentionally tries to make as little assumptions on the notification
 payloads being pushed, as they are mostly handed over as is to the upstream

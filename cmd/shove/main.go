@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -64,7 +65,10 @@ var apnsWorkers = flag.Int("apns-workers", LookupEnvOrInt("APNS_WORKERS", 4), "T
 var googleApplicationCredentials = flag.String("google-application-credentials", LookupEnvOrString("GOOGLE_APPLICATION_CREDENTIALS", ""), "Google application credentials path")
 var fcmWorkers = flag.Int("fcm-workers", LookupEnvOrInt("FCM_WORKERS", 4), "The number of workers pushing FCM messages")
 
-var redisURL = flag.String("queue-redis", LookupEnvOrString("QUEUE_REDIS", ""), "Use Redis queue (Redis URL)")
+var redisHost = flag.String("redis-host", LookupEnvOrString("REDIS_HOST", ""), "Redis host")
+var redisPort = flag.String("redis-port", LookupEnvOrString("REDIS_PORT", "6379"), "Redis port")
+var redisPassword = flag.String("redis-password", LookupEnvOrString("REDIS_PASSWORD", ""), "Redis password")
+var redisDB = flag.String("redis-db", LookupEnvOrString("REDIS_DB", "0"), "Redis database number")
 
 var webhookWorkers = flag.Int("webhook-workers", LookupEnvOrInt("WEBHOOK_WORKERS", 0), "The number of workers pushing Webhook messages")
 
@@ -124,12 +128,18 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	var qf queue.QueueFactory
-	if *redisURL == "" {
-		slog.Info("Using non-persistent in-memory queue")
+	if *redisHost == "" {
+		slog.Warn("REDIS_HOST not set, using non-persistent in-memory queue")
 		qf = memory.MemoryQueueFactory{}
 	} else {
-		slog.Info("Using Redis queue at", "address", *redisURL)
-		qf = redis.NewQueueFactory(*redisURL)
+		var redisURL string
+		if *redisPassword != "" {
+			redisURL = fmt.Sprintf("redis://:%s@%s:%s/%s", *redisPassword, *redisHost, *redisPort, *redisDB)
+		} else {
+			redisURL = fmt.Sprintf("redis://%s:%s/%s", *redisHost, *redisPort, *redisDB)
+		}
+		slog.Info("Using Redis queue", "host", *redisHost, "port", *redisPort, "db", *redisDB)
+		qf = redis.NewQueueFactory(redisURL)
 	}
 	s := server.NewServer(*apiAddr, qf)
 
@@ -158,7 +168,6 @@ func main() {
 	}
 
 	if *googleApplicationCredentials != "" {
-
 		fcm, err := fcm.NewFCM(newServiceLogger("fcm"))
 		if err != nil {
 			slog.Error("Failed to setup FCM service", "error", err)

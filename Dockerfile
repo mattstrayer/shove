@@ -1,6 +1,10 @@
 # Build Stage
 FROM golang:1.24-alpine AS build
 
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG TARGETARCH=amd64
+
 # Install git for go mod download
 RUN apk add --no-cache git
 
@@ -12,7 +16,7 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o shove ./cmd/shove
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} go build -o shove ./cmd/shove
 
 # Final Stage
 FROM alpine:3.21

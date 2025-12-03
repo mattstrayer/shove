@@ -63,9 +63,6 @@ jobs:
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
             BUILDKIT_PROGRESS=plain
-            GOOS=linux
-            GOARCH=amd64
-            CGO_ENABLED=0
           provenance: true
           outputs: type=registry,compression=zstd
 
