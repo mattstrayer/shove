@@ -58,6 +58,7 @@ func LookupEnvOrBool(key string, defaultVal bool) bool {
 
 var debug = flag.Bool("debug", LookupEnvOrBool("DEBUG", false), "Enable debug logging")
 var apiAddr = flag.String("api-addr", LookupEnvOrString("API_ADDR", ":8322"), "API address to listen to")
+var workerOnly = flag.Bool("worker-only", LookupEnvOrBool("WORKER_ONLY", false), "Run in worker-only mode (no HTTP server)")
 
 var apnsWorkers = flag.Int("apns-workers", LookupEnvOrInt("APNS_WORKERS", 4), "The number of workers pushing APNS messages")
 
@@ -98,7 +99,7 @@ var (
 	apnsKeyID              = flag.String("apns-key-id", LookupEnvOrString("APNS_KEY_ID", ""), "APNS Key ID from Apple Developer account")
 	apnsTeamID             = flag.String("apns-team-id", LookupEnvOrString("APNS_TEAM_ID", ""), "APNS Team ID from Apple Developer account")
 	apnsSandboxAuthKeyPath = flag.String("apns-sandbox-auth-key-path", LookupEnvOrString("APNS_SANDBOX_AUTH_KEY_PATH", ""), "APNS sandbox authentication key path (.p8 file)")
-	apnsSandboxAuthKey    = flag.String("apns-sandbox-auth-key", LookupEnvOrString("APNS_SANDBOX_AUTH_KEY", ""), "APNS sandbox authentication key (base64-encoded .p8 file content)")
+	apnsSandboxAuthKey     = flag.String("apns-sandbox-auth-key", LookupEnvOrString("APNS_SANDBOX_AUTH_KEY", ""), "APNS sandbox authentication key (base64-encoded .p8 file content)")
 	apnsSandboxKeyID       = flag.String("apns-sandbox-key-id", LookupEnvOrString("APNS_SANDBOX_KEY_ID", ""), "APNS sandbox Key ID from Apple Developer account")
 	apnsSandboxTeamID      = flag.String("apns-sandbox-team-id", LookupEnvOrString("APNS_SANDBOX_TEAM_ID", ""), "APNS sandbox Team ID from Apple Developer account")
 )
@@ -121,6 +122,14 @@ func newServiceLogger(service string) *slog.Logger {
 	)
 }
 
+// buildRedisURL constructs a Redis URL from configuration flags.
+func buildRedisURL() string {
+	if *redisPassword != "" {
+		return fmt.Sprintf("redis://:%s@%s:%s/%s", *redisPassword, *redisHost, *redisPort, *redisDB)
+	}
+	return fmt.Sprintf("redis://%s:%s/%s", *redisHost, *redisPort, *redisDB)
+}
+
 func main() {
 	flag.Parse()
 
@@ -131,20 +140,26 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	var qf queue.QueueFactory
+	var fs queue.FeedbackStore
+
 	if *redisHost == "" {
-		slog.Warn("REDIS_HOST not set, using non-persistent in-memory queue")
+		slog.Warn("REDIS_HOST not set, using non-persistent in-memory queue and feedback store")
 		qf = memory.MemoryQueueFactory{}
+		fs = memory.NewFeedbackStore()
 	} else {
-		var redisURL string
-		if *redisPassword != "" {
-			redisURL = fmt.Sprintf("redis://:%s@%s:%s/%s", *redisPassword, *redisHost, *redisPort, *redisDB)
-		} else {
-			redisURL = fmt.Sprintf("redis://%s:%s/%s", *redisHost, *redisPort, *redisDB)
-		}
+		redisURL := buildRedisURL()
 		slog.Info("Using Redis queue", "host", *redisHost, "port", *redisPort, "db", *redisDB)
 		qf = redis.NewQueueFactory(redisURL)
+
+		var err error
+		fs, err = redis.NewFeedbackStoreFromURL(redisURL)
+		if err != nil {
+			slog.Error("Failed to create Redis feedback store", "error", err)
+			os.Exit(1)
+		}
+		slog.Info("Using Redis feedback store", "key", "shove:feedback")
 	}
-	s := server.NewServer(*apiAddr, qf)
+	s := server.NewServer(*apiAddr, qf, fs, *workerOnly)
 
 	if *apnsAuthKeyPath != "" || *apnsAuthKey != "" {
 		var apnsService *apns.APNS
@@ -270,14 +285,18 @@ func main() {
 		}
 	}
 
-	go func() {
-		slog.Info("Serving", "address", *apiAddr)
-		err := s.Serve()
-		if err != nil {
-			slog.Error("Serve failed", "error", err)
-			os.Exit(1)
-		}
-	}()
+	if *workerOnly {
+		slog.Info("Running in worker-only mode (HTTP server disabled)")
+	} else {
+		go func() {
+			slog.Info("Serving", "address", *apiAddr)
+			err := s.Serve()
+			if err != nil {
+				slog.Error("Serve failed", "error", err)
+				os.Exit(1)
+			}
+		}()
+	}
 	<-stop
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

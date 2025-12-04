@@ -48,6 +48,8 @@ Usage:
     Usage of ./shove:
       -api-addr string
             API address to listen to (default ":8322")
+      -worker-only
+            Run in worker-only mode (no HTTP server)
       -apns-certificate-path string
             APNS certificate path
       -apns-sandbox-certificate-path string
@@ -245,18 +247,60 @@ token will equal the unreachable chat ID.
 
 ### Receive Feedback
 
-Outdated/invalid tokens are communicated back. To receive those, you can periodically query the feedback channel to receive token feedback, and remove those from your database:
+Outdated/invalid device tokens (from APNS and FCM) are communicated back through the feedback system. When Redis is configured, feedback is persisted to the `shove:feedback` Redis key and survives server restarts. Without Redis, feedback is stored in-memory and lost on restart.
 
+#### HTTP API
 
-    $ curl -X POST 'http://localhost:8322/api/feedback'
+**Pop feedback (retrieve and remove):**
+
+    $ curl -X POST 'http://localhost:8322/api/feedback?limit=100'
 
     {
       "feedback": [
-        {"service":"apns-sandbox",
-         "token":"881becff86cbd221544044d3b9aeaaf6314dfbef2abb2fe313f3725f4505cb47",
-         "reason":"invalid"}
+        {
+          "service": "apns-sandbox",
+          "token": "881becff86cbd221544044d3b9aeaaf6314dfbef2abb2fe313f3725f4505cb47",
+          "reason": "invalid",
+          "timestamp": 1701705600
+        }
       ]
     }
+
+**Peek feedback (retrieve without removing):**
+
+    $ curl 'http://localhost:8322/api/feedback/peek?limit=100'
+
+    {
+      "feedback": [...],
+      "total": 42
+    }
+
+#### Direct Redis Access (for cron jobs)
+
+When using Redis, your cron job or external service can consume feedback directly from the `shove:feedback` Redis list:
+
+```python
+import redis
+import json
+
+r = redis.Redis(host='localhost', port=6379, db=0)
+
+# Pop oldest entries (FIFO)
+while True:
+    item = r.rpop('shove:feedback')
+    if not item:
+        break
+    feedback = json.loads(item)
+    # Process: remove token from your database
+    print(f"Invalid token for {feedback['service']}: {feedback['token']}")
+```
+
+Each feedback entry contains:
+- `service`: The service ID (e.g., `apns`, `apns-sandbox`, `fcm`)
+- `token`: The invalid/replaced device token
+- `replacement_token`: (optional) New token to use instead
+- `reason`: Either `invalid` or `replaced`
+- `timestamp`: Unix timestamp when the feedback was recorded
 
 
 ### Email
@@ -324,6 +368,24 @@ REDIS_DB=0
 ```
 
 If `REDIS_HOST` is not set, Shove falls back to a non-persistent in-memory queue.
+
+#### Worker-Only Mode
+
+For deployments where messages are pushed directly to Redis queues and no HTTP API is needed, you can run Shove in worker-only mode to save resources:
+
+```bash
+# Via flag
+shove -worker-only -redis-host localhost ...
+
+# Via environment variable
+WORKER_ONLY=true shove -redis-host localhost ...
+```
+
+In worker-only mode:
+- No HTTP server is started (saves memory and CPU)
+- Workers still process messages from Redis queues
+- Feedback is still stored in Redis (`shove:feedback`)
+- Consume feedback directly from Redis using your cron job
 
 Shove intentionally tries to make as little assumptions on the notification
 payloads being pushed, as they are mostly handed over as is to the upstream

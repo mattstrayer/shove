@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 
 	"log/slog"
 
@@ -15,37 +14,43 @@ import (
 
 // Server ...
 type Server struct {
-	server       *http.Server
-	shuttingDown bool
-	queueFactory queue.QueueFactory
-	workers      map[string]*worker
-	feedbackLock sync.Mutex
-	feedback     []tokenFeedback
+	server        *http.Server
+	shuttingDown  bool
+	workerOnly    bool
+	queueFactory  queue.QueueFactory
+	feedbackStore queue.FeedbackStore
+	workers       map[string]*worker
 }
 
 // NewServer ...
-func NewServer(addr string, qf queue.QueueFactory) (s *Server) {
-	mux := http.NewServeMux()
-
-	h := &http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}
+func NewServer(addr string, qf queue.QueueFactory, fs queue.FeedbackStore, workerOnly bool) (s *Server) {
 	s = &Server{
-		server:       h,
-		queueFactory: qf,
-		workers:      make(map[string]*worker),
-		feedback:     make([]tokenFeedback, 0),
+		queueFactory:  qf,
+		feedbackStore: fs,
+		workerOnly:    workerOnly,
+		workers:       make(map[string]*worker),
 	}
-	mux.HandleFunc("/api/push/", s.handlePush)
-	mux.HandleFunc("/api/feedback", s.handleFeedback)
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/health", s.handleHealth)
+
+	if !workerOnly {
+		mux := http.NewServeMux()
+		s.server = &http.Server{
+			Addr:    addr,
+			Handler: mux,
+		}
+		mux.HandleFunc("/api/push/", s.handlePush)
+		mux.HandleFunc("/api/feedback", s.handleFeedback)
+		mux.HandleFunc("/api/feedback/peek", s.handleFeedbackPeek)
+		mux.Handle("/metrics", promhttp.Handler())
+		mux.HandleFunc("/health", s.handleHealth)
+	}
 	return s
 }
 
-// Serve ...
+// Serve starts the HTTP server. Returns immediately if in worker-only mode.
 func (s *Server) Serve() (err error) {
+	if s.workerOnly {
+		return nil
+	}
 	slog.Info("Shove server started")
 	err = s.server.ListenAndServe()
 	if s.shuttingDown {
@@ -57,16 +62,24 @@ func (s *Server) Serve() (err error) {
 // Shutdown ...
 func (s *Server) Shutdown(ctx context.Context) (err error) {
 	s.shuttingDown = true
-	s.server.Shutdown(ctx)
-	if err = s.server.Shutdown(ctx); err != nil {
-		slog.Error("Shutting down Shove server", "error", err)
-		return
+
+	if s.server != nil {
+		if err = s.server.Shutdown(ctx); err != nil {
+			slog.Error("Shutting down Shove server", "error", err)
+			return
+		}
+		slog.Info("Shove server stopped")
 	}
-	slog.Info("Shove server stopped")
+
 	for _, w := range s.workers {
 		err = w.shutdown()
 		if err != nil {
 			return
+		}
+	}
+	if s.feedbackStore != nil {
+		if err = s.feedbackStore.Close(); err != nil {
+			slog.Error("Failed to close feedback store", "error", err)
 		}
 	}
 	return
