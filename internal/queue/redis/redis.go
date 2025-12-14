@@ -115,8 +115,6 @@ func (q *redisQueue) Get(ctx context.Context) (queue.QueuedMessage, error) {
 			cancel()
 		}
 
-		log.Printf("Waiting for message from queue: %s", q.key)
-
 		// Use a timeout for BRPop to allow periodic context checks and connection health verification
 		result := q.client.BRPop(ctx, brPopTimeout, q.key)
 
@@ -126,8 +124,15 @@ func (q *redisQueue) Get(ctx context.Context) (queue.QueuedMessage, error) {
 				return nil, ctx.Err()
 			}
 
-			// Check if it's a connection error that we should retry
 			err := result.Err()
+			
+			// redis.Nil is expected when BRPop times out (no messages available)
+			// This is not an error, just continue waiting
+			if err == redis.Nil {
+				continue
+			}
+
+			// Check if it's a connection error that we should retry
 			if isConnectionError(err) {
 				retryCount++
 				wasRetrying = true
