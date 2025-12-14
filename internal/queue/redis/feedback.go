@@ -34,6 +34,9 @@ func NewFeedbackStoreFromURL(redisURL string) (*FeedbackStore, error) {
 	opt.PoolSize = 10
 	opt.MinIdleConns = 2
 	opt.PoolTimeout = time.Second * 30
+	opt.ReadTimeout = 10 * time.Second  // Timeout for read operations
+	opt.WriteTimeout = 10 * time.Second // Timeout for write operations
+	opt.DialTimeout = 5 * time.Second   // Timeout for establishing connections
 
 	client := redis.NewClient(opt)
 

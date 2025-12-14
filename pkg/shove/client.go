@@ -3,6 +3,7 @@ package shove
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -22,6 +23,11 @@ func NewRedisClient(redisURL string) Client {
 	if err != nil {
 		panic(err)
 	}
+
+	// Configure connection timeouts
+	opt.ReadTimeout = 10 * time.Second  // Timeout for read operations
+	opt.WriteTimeout = 10 * time.Second // Timeout for write operations
+	opt.DialTimeout = 5 * time.Second   // Timeout for establishing connections
 
 	client := redis.NewClient(opt)
 	return &redisClient{
