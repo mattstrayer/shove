@@ -10,6 +10,7 @@ import (
 type fcmMessage struct {
 	To              string   `json:"to"`
 	RegistrationIDs []string `json:"registration_ids"`
+	CorrelationID   string   `json:"correlation_id,omitempty"`
 	rawData         []byte
 }
 
