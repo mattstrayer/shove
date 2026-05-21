@@ -14,7 +14,7 @@ import (
 
 	"github.com/mattstrayer/shove/internal/queue"
 	"github.com/mattstrayer/shove/internal/queue/memory"
-	"github.com/mattstrayer/shove/internal/queue/redis"
+	queueredis "github.com/mattstrayer/shove/internal/queue/redis"
 	"github.com/mattstrayer/shove/internal/server"
 	"github.com/mattstrayer/shove/internal/services"
 	"github.com/mattstrayer/shove/internal/services/apns"
@@ -23,7 +23,44 @@ import (
 	"github.com/mattstrayer/shove/internal/services/telegram"
 	"github.com/mattstrayer/shove/internal/services/webhook"
 	"github.com/mattstrayer/shove/internal/services/webpush"
+	goredis "github.com/redis/go-redis/v9"
 )
+
+// apnsResultAdapter routes APNS envelopes to the queue/redis emitter.
+// A thin wrapper is required because services/apns declares its own
+// ResultEnvelope type to avoid importing queue/redis.
+type apnsResultAdapter struct{ inner *queueredis.ResultEmitter }
+
+func (a apnsResultAdapter) Emit(ctx context.Context, r apns.ResultEnvelope) error {
+	return a.inner.Emit(ctx, queueredis.Result{
+		CorrelationID: r.CorrelationID,
+		Service:       r.Service,
+		Status:        queueredis.ResultStatus(r.Status),
+		GatewayID:     r.GatewayID,
+		HTTPStatus:    r.HTTPStatus,
+		ErrorCode:     r.ErrorCode,
+		ErrorMessage:  r.ErrorMessage,
+		LatencyMS:     r.LatencyMS,
+		Timestamp:     r.Timestamp,
+	})
+}
+
+// fcmResultAdapter routes FCM envelopes to the queue/redis emitter.
+type fcmResultAdapter struct{ inner *queueredis.ResultEmitter }
+
+func (a fcmResultAdapter) Emit(ctx context.Context, r fcm.ResultEnvelope) error {
+	return a.inner.Emit(ctx, queueredis.Result{
+		CorrelationID: r.CorrelationID,
+		Service:       r.Service,
+		Status:        queueredis.ResultStatus(r.Status),
+		GatewayID:     r.GatewayID,
+		HTTPStatus:    r.HTTPStatus,
+		ErrorCode:     r.ErrorCode,
+		ErrorMessage:  r.ErrorMessage,
+		LatencyMS:     r.LatencyMS,
+		Timestamp:     r.Timestamp,
+	})
+}
 
 // from -> https://www.gmarik.info/blog/2019/12-factor-golang-flag-package/
 func LookupEnvOrString(key string, defaultVal string) string {
@@ -141,6 +178,7 @@ func main() {
 
 	var qf queue.QueueFactory
 	var fs queue.FeedbackStore
+	var resultEmitter *queueredis.ResultEmitter
 
 	if *redisHost == "" {
 		slog.Warn("REDIS_HOST not set, using non-persistent in-memory queue and feedback store")
@@ -149,15 +187,25 @@ func main() {
 	} else {
 		redisURL := buildRedisURL()
 		slog.Info("Using Redis queue", "host", *redisHost, "port", *redisPort, "db", *redisDB)
-		qf = redis.NewQueueFactory(redisURL)
+		qf = queueredis.NewQueueFactory(redisURL)
 
 		var err error
-		fs, err = redis.NewFeedbackStoreFromURL(redisURL)
+		fs, err = queueredis.NewFeedbackStoreFromURL(redisURL)
 		if err != nil {
 			slog.Error("Failed to create Redis feedback store", "error", err)
 			os.Exit(1)
 		}
 		slog.Info("Using Redis feedback store", "key", "shove:feedback")
+
+		// Build the results emitter from the same Redis connection params.
+		// Result events land on `shove:results`; the Vandal API drains them.
+		opt, err := goredis.ParseURL(redisURL)
+		if err != nil {
+			slog.Error("Failed to parse Redis URL for result emitter", "error", err)
+			os.Exit(1)
+		}
+		resultEmitter = queueredis.NewResultEmitter(goredis.NewClient(opt))
+		slog.Info("result emitter wired", "key", "shove:results")
 	}
 	s := server.NewServer(*apiAddr, qf, fs, *workerOnly)
 
@@ -172,6 +220,9 @@ func main() {
 		if err != nil {
 			logger.Error("Failed to initialize APNS", "error", err)
 			os.Exit(1)
+		}
+		if resultEmitter != nil {
+			apnsService.SetResultEmitter(apnsResultAdapter{inner: resultEmitter})
 		}
 		if err := s.AddService(apnsService, *apnsWorkers, services.SquashConfig{}); err != nil {
 			slog.Error("Failed to add APNS service", "error", err)
@@ -193,6 +244,9 @@ func main() {
 			logger.Error("Failed to initialize APNS sandbox", "error", err)
 			os.Exit(1)
 		}
+		if resultEmitter != nil {
+			apnsService.SetResultEmitter(apnsResultAdapter{inner: resultEmitter})
+		}
 		if err := s.AddService(apnsService, *apnsWorkers, services.SquashConfig{}); err != nil {
 			slog.Error("Failed to add APNS sandbox service", "error", err)
 			os.Exit(1)
@@ -212,6 +266,9 @@ func main() {
 		if err != nil {
 			slog.Error("Failed to setup FCM service", "error", err)
 			os.Exit(1)
+		}
+		if resultEmitter != nil {
+			fcmService.SetResultEmitter(fcmResultAdapter{inner: resultEmitter})
 		}
 		if err := s.AddService(fcmService, *fcmWorkers, services.SquashConfig{}); err != nil {
 			slog.Error("Failed to add FCM service", "error", err)
