@@ -32,6 +32,19 @@ func (fcm *FCM) ConvertMessage(data []byte) (smsg services.ServiceMessage, err e
 	if msg.To != "" && len(msg.RegistrationIDs) > 0 {
 		return nil, errors.New("both to/registration_ids specified")
 	}
+	// Strip correlation_id from the raw bytes that get forwarded to FCM.
+	// We re-marshal a generic map after deleting the key. This is cheap
+	// (one push per message) and makes the strip behavior explicit rather
+	// than relying on messaging.Message's silent unknown-field drop.
+	if msg.CorrelationID != "" {
+		var generic map[string]json.RawMessage
+		if err := json.Unmarshal(data, &generic); err == nil {
+			delete(generic, "correlation_id")
+			if stripped, mErr := json.Marshal(generic); mErr == nil {
+				data = stripped
+			}
+		}
+	}
 	msg.rawData = data
 	return msg, nil
 }
