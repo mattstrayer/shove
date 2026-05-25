@@ -36,4 +36,3 @@ type FeedbackStore interface {
 type FeedbackStoreFactory interface {
 	NewFeedbackStore() (FeedbackStore, error)
 }
-
