@@ -5,10 +5,12 @@ go 1.24.0
 require (
 	firebase.google.com/go/v4 v4.13.0
 	github.com/SherClockHolmes/webpush-go v1.2.0
+	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/jordan-wright/email v4.0.1-0.20210109023952-943e75fe5223+incompatible
 	github.com/prometheus/client_golang v1.14.0
 	github.com/redis/go-redis/v9 v9.5.1
 	github.com/sideshow/apns2 v0.25.0
+	google.golang.org/api v0.189.0
 )
 
 require (
@@ -39,6 +41,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
+	github.com/yuin/gopher-lua v1.1.1 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.49.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
@@ -52,7 +55,6 @@ require (
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	google.golang.org/api v0.189.0 // indirect
 	google.golang.org/appengine/v2 v2.0.2 // indirect
 	google.golang.org/genproto v0.0.0-20240722135656-d784300faade // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240722135656-d784300faade // indirect

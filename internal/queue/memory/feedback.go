@@ -84,4 +84,3 @@ func (s *FeedbackStore) Close() error {
 
 // Ensure FeedbackStore implements queue.FeedbackStore
 var _ queue.FeedbackStore = (*FeedbackStore)(nil)
-

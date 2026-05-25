@@ -10,13 +10,15 @@ import (
 )
 
 type apnsMessage struct {
-	Token   string                     `json:"token"`
-	Headers map[string]json.RawMessage `json:"headers,omitempty"`
-	Payload json.RawMessage            `json:"payload,omitempty"`
+	Token         string                     `json:"token"`
+	CorrelationID string                     `json:"correlation_id,omitempty"`
+	Headers       map[string]json.RawMessage `json:"headers,omitempty"`
+	Payload       json.RawMessage            `json:"payload,omitempty"`
 }
 
 type apnsNotification struct {
-	notification *apns2.Notification
+	notification  *apns2.Notification
+	correlationID string
 }
 
 func (notif apnsNotification) GetSquashKey() string {
@@ -68,7 +70,7 @@ func (apns *APNS) ConvertMessage(data []byte) (smsg services.ServiceMessage, err
 		notif.Expiration = time.Unix(epoch, 0)
 	}
 	notif.Payload = msg.Payload
-	smsg = apnsNotification{notification: notif}
+	smsg = apnsNotification{notification: notif, correlationID: msg.CorrelationID}
 	return
 }
 

@@ -48,9 +48,9 @@ func NewQueueFactory(redisURL string) queue.QueueFactory {
 	log.Printf("Connecting to Redis at: %s", opt.Addr)
 
 	// Configure connection pool settings
-	opt.PoolSize = 50                  // Increase from default 10
-	opt.MinIdleConns = 10              // Maintain some minimum idle connections
-	opt.PoolTimeout = time.Second * 30 // Increase timeout for getting connection from pool
+	opt.PoolSize = 50                   // Increase from default 10
+	opt.MinIdleConns = 10               // Maintain some minimum idle connections
+	opt.PoolTimeout = time.Second * 30  // Increase timeout for getting connection from pool
 	opt.ReadTimeout = 10 * time.Second  // Timeout for read operations
 	opt.WriteTimeout = 10 * time.Second // Timeout for write operations
 	opt.DialTimeout = 5 * time.Second   // Timeout for establishing connections
@@ -125,7 +125,7 @@ func (q *redisQueue) Get(ctx context.Context) (queue.QueuedMessage, error) {
 			}
 
 			err := result.Err()
-			
+
 			// redis.Nil is expected when BRPop times out (no messages available)
 			// This is not an error, just continue waiting
 			if err == redis.Nil {

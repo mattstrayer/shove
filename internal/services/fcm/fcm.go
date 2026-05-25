@@ -19,8 +19,17 @@ import (
 
 // FCM ...
 type FCM struct {
-	client *messaging.Client
-	log    *slog.Logger
+	client  *messaging.Client
+	log     *slog.Logger
+	emitter ResultEmitter
+}
+
+// SetResultEmitter wires a ResultEmitter to receive per-send result envelopes.
+func (fcm *FCM) SetResultEmitter(e ResultEmitter) { fcm.emitter = e }
+
+// fcmSender abstracts *messaging.Client for testing.
+type fcmSender interface {
+	Send(ctx context.Context, m *messaging.Message) (string, error)
 }
 
 // NewFCM creates a new FCM service using GOOGLE_APPLICATION_CREDENTIALS file path
@@ -124,60 +133,109 @@ func (fcm *FCM) SquashAndPushMessage(services.PumpClient, []services.ServiceMess
 }
 
 func (fcm *FCM) PushMessage(pclient services.PumpClient, smsg services.ServiceMessage, fc services.FeedbackCollector) services.PushStatus {
-	msg := smsg.(fcmMessage)
+	return fcm.sendWithClient(fcm.client, smsg.(fcmMessage), fc)
+}
+
+func (fcm *FCM) sendWithClient(sender fcmSender, msg fcmMessage, fc services.FeedbackCollector) services.PushStatus {
 	startedAt := time.Now()
 
 	message := messaging.Message{}
-	err := json.Unmarshal(msg.rawData, &message)
-	if err != nil {
+	if err := json.Unmarshal(msg.rawData, &message); err != nil {
 		fcm.log.Error("error unmarshalling message", "error", err)
+		fcm.emitFailure(msg, "unmarshal_error", err.Error(), 0, time.Since(startedAt))
 		return services.PushStatusHardFail
 	}
-
 	message.Token = msg.To
 
-	var success bool
+	gatewayID, err := sender.Send(context.Background(), &message)
+	duration := time.Since(startedAt)
+	fcm.log.Info("Sending", "gateway_id", gatewayID, "error", err)
 
-	// Send a message to the device corresponding to the provided
-	// registration token.
-	response, err := fcm.client.Send(context.Background(), &message)
-
-	fcm.log.Info("Sending", "response", response, "error", err)
 	if err != nil {
 		fcm.log.Error("sending failed", "error", err)
+
+		status := ResultStatusFailed
+		var pushStatus services.PushStatus
 
 		// Only define conditions where we need to hard fail.
 		// all others will be temp failed by default
 		// https://github.com/firebase/firebase-admin-go/blob/master/internal/errors.go#L68
-		if errorutils.IsInvalidArgument(err) {
-			return services.PushStatusHardFail
-		}
-
-		if errorutils.IsDataLoss(err) {
-			return services.PushStatusHardFail
-		}
-
-		if errorutils.IsNotFound(err) {
+		switch {
+		case errorutils.IsNotFound(err):
 			// you should remove the registration ID from your
 			// server database because the application was
 			// uninstalled from the device or it does not have a
 			// broadcast receiver configured to receive
 			// com.google.android.c2dm.intent.RECEIVE intents.
 			fc.TokenInvalid(fcm.ID(), msg.To)
-			return services.PushStatusHardFail
+			status = ResultStatusInvalid
+			pushStatus = services.PushStatusHardFail
+		case errorutils.IsInvalidArgument(err):
+			status = ResultStatusInvalid
+			pushStatus = services.PushStatusHardFail
+		case errorutils.IsDataLoss(err):
+			pushStatus = services.PushStatusHardFail
+		default:
+			pushStatus = services.PushStatusTempFail
 		}
 
-		return services.PushStatusTempFail
+		fc.CountPush(fcm.ID(), false, duration)
+		fcm.emitResult(ResultEnvelope{
+			CorrelationID: msg.CorrelationID,
+			Service:       fcm.ID(),
+			Status:        status,
+			ErrorCode:     errorCodeFor(err),
+			ErrorMessage:  err.Error(),
+			LatencyMS:     duration.Milliseconds(),
+			Timestamp:     time.Now().Unix(),
+		})
+		return pushStatus
 	}
 
-	duration := time.Since(startedAt)
-
-	defer func() {
-		fc.CountPush(fcm.ID(), success, duration)
-	}()
-
+	fc.CountPush(fcm.ID(), true, duration)
 	fcm.log.Info("Pushed", "duration", duration)
-
-	success = true
+	fcm.emitResult(ResultEnvelope{
+		CorrelationID: msg.CorrelationID,
+		Service:       fcm.ID(),
+		Status:        ResultStatusDelivered,
+		GatewayID:     gatewayID,
+		HTTPStatus:    http.StatusOK,
+		LatencyMS:     duration.Milliseconds(),
+		Timestamp:     time.Now().Unix(),
+	})
 	return services.PushStatusSuccess
+}
+
+func errorCodeFor(err error) string {
+	switch {
+	case errorutils.IsNotFound(err):
+		return "UNREGISTERED"
+	case errorutils.IsInvalidArgument(err):
+		return "INVALID_ARGUMENT"
+	case errorutils.IsDataLoss(err):
+		return "DATA_LOSS"
+	}
+	return "INTERNAL"
+}
+
+func (fcm *FCM) emitResult(env ResultEnvelope) {
+	if fcm.emitter == nil || env.CorrelationID == "" {
+		return
+	}
+	if err := fcm.emitter.Emit(context.Background(), env); err != nil {
+		fcm.log.Error("Failed to emit result", "error", err, "correlation_id", env.CorrelationID)
+	}
+}
+
+func (fcm *FCM) emitFailure(msg fcmMessage, code, message string, httpStatus int, dur time.Duration) {
+	fcm.emitResult(ResultEnvelope{
+		CorrelationID: msg.CorrelationID,
+		Service:       fcm.ID(),
+		Status:        ResultStatusFailed,
+		ErrorCode:     code,
+		ErrorMessage:  message,
+		HTTPStatus:    httpStatus,
+		LatencyMS:     dur.Milliseconds(),
+		Timestamp:     time.Now().Unix(),
+	})
 }
